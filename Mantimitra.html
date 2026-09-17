@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kisan Suvidha - Smart Procurement Portal</title>
+    <!-- QRCode.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: #f4f7f6; color: #333; }
+        
+        header { background: #1b4d3e; color: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.15); flex-wrap: wrap; gap: 10px; }
+        header h1 { font-size: 1.4rem; }
+        
+        .header-controls { display: flex; gap: 10px; align-items: center; }
+        .nav-tabs { display: flex; gap: 8px; background: rgba(255,255,255,0.15); padding: 4px; border-radius: 8px; }
+        .nav-btn { background: transparent; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.9rem; transition: 0.3s; }
+        .nav-btn.active { background: white; color: #1b4d3e; }
+
+        .lang-select { padding: 6px 10px; border-radius: 5px; border: none; font-weight: bold; cursor: pointer; }
+
+        .main-wrapper { max-width: 950px; margin: 25px auto; padding: 0 15px; }
+
+        /* Step Progress Bar */
+        .step-indicator { display: flex; justify-content: space-between; margin-bottom: 25px; position: relative; }
+        .step-indicator::before { content: ''; position: absolute; top: 50%; left: 0; right: 0; height: 4px; background: #ddd; z-index: 1; transform: translateY(-50%); }
+        .progress-line { position: absolute; top: 50%; left: 0; height: 4px; background: #2e7d32; z-index: 1; transform: translateY(-50%); transition: width 0.3s ease; width: 0%; }
+        .step-node { position: relative; z-index: 2; background: white; border: 3px solid #ddd; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #666; transition: 0.3s; }
+        .step-node.active { border-color: #2e7d32; background: #2e7d32; color: white; }
+
+        /* Card & View Container */
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.06); border-top: 5px solid #2e7d32; }
+        .view-section { display: none; }
+        .view-section.active { display: block; animation: fadeIn 0.4s ease-in-out; }
+
+        .slide { display: none; }
+        .slide.active { display: block; animation: fadeIn 0.4s ease-in-out; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h2 { font-size: 1.25rem; color: #1b4d3e; margin-bottom: 15px; border-bottom: 2px solid #e8f5e9; padding-bottom: 8px; }
+        
+        label { font-size: 0.9rem; font-weight: bold; color: #444; margin-top: 10px; display: block; }
+        .input-group { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
+        input, select { width: 100%; padding: 12px; margin: 4px 0 12px 0; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95rem; }
+        
+        .mic-btn { background: #e0e0e0; color: #333; border: none; padding: 12px; border-radius: 6px; cursor: pointer; font-size: 1rem; }
+        .mic-btn:hover { background: #ccc; }
+
+        /* Row Layouts */
+        .form-row { display: flex; gap: 15px; }
+        .form-row > div { flex: 1; }
+
+        /* Buttons Layout */
+        .btn-group { display: flex; justify-content: space-between; gap: 15px; margin-top: 20px; }
+        button { padding: 12px 20px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; font-size: 0.95rem; transition: 0.2s; }
+        .btn-primary { background-color: #2e7d32; color: white; }
+        .btn-primary:hover { background-color: #1b4d3e; }
+        .btn-secondary { background-color: #757575; color: white; }
+        .btn-secondary:hover { background-color: #616161; }
+        .btn-action { background-color: #e65100; color: white; padding: 8px 14px; font-size: 0.85rem; }
+
+        /* Dynamic Price Box */
+        .price-box { background: #e8f5e9; border: 1px dashed #2e7d32; padding: 12px; border-radius: 6px; margin: 10px 0; color: #1b4d3e; font-weight: bold; font-size: 0.95rem; }
+
+        /* Slip & QR Display */
+        #printableSlip { text-align: center; border: 2px dashed #2e7d32; padding: 20px; border-radius: 10px; background: #fafafa; }
+        .token-box { background: #2e7d32; color: white; display: inline-block; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 1.4rem; margin: 10px 0; }
+        #qrcode { display: flex; justify-content: center; margin: 15px 0; min-height: 130px; align-items: center; }
+        
+        /* Dashboard Cards Grid */
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 20px; }
+        .dash-card { background: #f9f9f9; padding: 15px; border-radius: 8px; border-left: 4px solid #1976d2; font-size: 0.88rem; }
+        
+        /* Procurement Queue Styles */
+        .current-processing-banner { background: linear-gradient(135deg, #1b4d3e, #2e7d32); color: white; padding: 20px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
+        .processing-details h3 { font-size: 1.4rem; color: #ffeb3b; }
+        .processing-details p { margin-top: 5px; font-size: 0.95rem; opacity: 0.9; }
+        .status-tag { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: bold; }
+        .status-processing { background: #fff3e0; color: #e65100; border: 1px solid #ffe0b2; }
+        .status-waiting { background: #e3f2fd; color: #0d47a1; border: 1px solid #bbdefb; }
+        .status-completed { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
+
+        .queue-table-wrapper { overflow-x: auto; margin-top: 15px; border-radius: 8px; border: 1px solid #e0e0e0; }
+        table.queue-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem; }
+        table.queue-table th { background: #f4f7f6; color: #1b4d3e; padding: 12px; border-bottom: 2px solid #ddd; }
+        table.queue-table td { padding: 12px; border-bottom: 1px solid #eee; }
+        table.queue-table tr.highlight-my-token { background: #f1f8e9; font-weight: bold; }
+
+        .search-bar { display: flex; gap: 10px; margin-bottom: 15px; }
+
+        @media print {
+            body * { visibility: hidden; }
+            #printableSlip, #printableSlip * { visibility: visible; }
+            #printableSlip { position: absolute; left: 0; top: 0; width: 100%; border: none; }
+            .btn-group, header, .step-indicator, .nav-tabs { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1 id="appHeader">🌾 किसान सुविधा (Smart Procurement)</h1>
+        
+        <div class="header-controls">
+            <!-- Navigation Tabs -->
+            <div class="nav-tabs">
+                <button class="nav-btn active" id="tab-reg" onclick="switchMainTab('registration')">🎟️ टोकन बुकिंग</button>
+                <button class="nav-btn" id="tab-proc" onclick="switchMainTab('procurement')">📊 प्रोक्योरमेंट लाइव कतार</button>
+            </div>
+
+            <div>
+                🌐 <select class="lang-select" id="langSelect" onchange="changeLanguage(this.value)">
+                    <option value="hi">हिन्दी (Hindi)</option>
+                    <option value="en">English</option>
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-wrapper">
+
+        <!-- VIEW 1: REGISTRATION FLOW -->
+        <div class="view-section active" id="view-registration">
+            
+            <!-- Progress Indicator -->
+            <div class="step-indicator">
+                <div class="progress-line" id="progressLine"></div>
+                <div class="step-node active" id="node1">1</div>
+                <div class="step-node" id="node2">2</div>
+                <div class="step-node" id="node3">3</div>
+            </div>
+
+            <div class="card">
+                
+                <!-- SLIDE 1: Farmer & Crop Details -->
+                <div class="slide active" id="slide1">
+                    <h2 id="s1-title">👤 स्टेप 1: किसान एवं फसल की जानकारी</h2>
+                    
+                    <label id="lbl-name">किसान का नाम:</label>
+                    <div class="input-group">
+                        <input type="text" id="farmerName" placeholder="उदा. राम कुमार">
+                        <button type="button" class="mic-btn" onclick="startSpeech('farmerName')" title="बोलकर दर्ज करें">🎤</button>
+                    </div>
+
+                    <label id="lbl-mobile">मोबाइल नंबर:</label>
+                    <input type="tel" id="farmerMobile" placeholder="10 अंकों का नंबर दर्ज करें" maxlength="10">
+
+                    <div class="form-row">
+                        <div>
+                            <label id="lbl-crop">फसल का चयन करें:</label>
+                            <select id="cropType" onchange="calculatePrice()">
+                                <option value="Wheat" data-hi="गेहूं (Wheat)" data-en="Wheat" data-msp="2275">गेहूं (Wheat) - MSP ₹2,275/Qtl</option>
+                                <option value="Gram" data-hi="चना (Gram)" data-en="Gram" data-msp="5440">चना (Gram) - MSP ₹5,440/Qtl</option>
+                                <option value="Paddy" data-hi="धान (Paddy)" data-en="Paddy" data-msp="2183">धान (Paddy) - MSP ₹2,183/Qtl</option>
+                                <option value="Mustard" data-hi="सरसों (Mustard)" data-en="Mustard" data-msp="5650">सरसों (Mustard) - MSP ₹5,650/Qtl</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label id="lbl-quality">फसल गुणवत्ता/नमी:</label>
+                            <select id="cropQuality" onchange="calculatePrice()">
+                                <option value="Grade A" data-hi="ग्रेड A (मानक नमी < 12%)" data-en="Grade A (Standard Moisture < 12%)" data-bonus="1.0">ग्रेड A (मानक नमी < 12%)</option>
+                                <option value="Grade B" data-hi="ग्रेड B (नमी 12%-14%)" data-en="Grade B (Moisture 12%-14%)" data-bonus="0.98">ग्रेड B (नमी 12%-14%)</option>
+                                <option value="Grade C" data-hi="ग्रेड C (उच्च नमी > 14%)" data-en="Grade C (High Moisture > 14%)" data-bonus="0.95">ग्रेड C (उच्च नमी > 14%)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <label id="lbl-qty">उपज मात्रा (क्विंटल):</label>
+                    <input type="number" id="cropQty" placeholder="उदा. 20" oninput="calculatePrice()">
+
+                    <!-- Dynamic Price Box -->
+                    <div class="price-box" id="priceDisplay">💰 अनुमानित कुल भुगतान: ₹0</div>
+
+                    <div class="btn-group" style="justify-content: flex-end;">
+                        <button class="btn-primary" id="btn-next1" onclick="nextSlide(1)">आगे बढ़ें ➡️</button>
+                    </div>
+                </div>
+
+                <!-- SLIDE 2: Mandi & Vehicle Selection -->
+                <div class="slide" id="slide2">
+                    <h2 id="s2-title">📍 स्टेप 2: मंडी, वाहन एवं स्लॉट चयन</h2>
+
+                    <label id="lbl-centre">मंडी / खरीदी केंद्र चुनें:</label>
+                    <select id="centre">
+                        <option value="Mandideep Center 01" data-hi="मंडीदीप केंद्र 01 (सीहोर)" data-en="Mandideep Center 01 (Sehore)">मंडीदीप केंद्र 01 (सीहोर)</option>
+                        <option value="Raisen Center 02" data-hi="रायसेन केंद्र 02" data-en="Raisen Center 02">रायसेन केंद्र 02</option>
+                        <option value="Vidisha Hub 03" data-hi="विदिशा हब 03" data-en="Vidisha Hub 03">विदिशा हब 03</option>
+                    </select>
+
+                    <div class="form-row">
+                        <div>
+                            <label id="lbl-date">उपज लाने की तिथि:</label>
+                            <input type="date" id="date" onchange="checkWeatherAlert(this.value)">
+                        </div>
+                        <div>
+                            <label id="lbl-vehicle">परिवहन वाहन का प्रकार:</label>
+                            <select id="vehicleType">
+                                <option value="Tractor Trolley" data-hi="🚜 ट्रैक्टर ट्रॉली (Tractor)" data-en="🚜 Tractor Trolley" data-time="15" data-gate="Lane A (Tractor)">🚜 ट्रैक्टर ट्रॉली (Tractor)</option>
+                                <option value="Pickup Truck" data-hi="🛻 पिकअप / छोटा हाथी" data-en="🛻 Pickup / Mini Truck" data-time="10" data-gate="Lane B (Small)">🛻 पिकअप / छोटा हाथी</option>
+                                <option value="Large Truck" data-hi="🚛 बड़ा ट्रक (Medium Truck)" data-en="🚛 Medium/Large Truck" data-time="30" data-gate="Lane C (Heavy)">🚛 बड़ा ट्रक</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div>
+                            <label id="lbl-bank">डीबीटी/बैंक खाता विवरण (DBT/Bank/UPI):</label>
+                            <input type="text" id="bankDetails" placeholder="उदा. A/C No. या UPI ID">
+                        </div>
+                    </div>
+
+                    <!-- Weather Alert Box -->
+                    <div id="weatherAlert" style="background: #fff8e1; border-left: 4px solid #ffb300; padding: 10px; border-radius: 4px; margin-top: 10px; font-size: 0.85rem;">
+                        🌦️ <strong id="lbl-weather-title">मौसम पूर्वानुमान:</strong> <span id="lbl-weather-msg">कृपया उपज लाने हेतु तिथि का चयन करें।</span>
+                    </div>
+
+                    <div class="btn-group">
+                        <button class="btn-secondary" id="btn-back2" onclick="prevSlide(2)">⬅️ पीछे जाएं</button>
+                        <button class="btn-primary" id="btn-gen-token" onclick="generateToken()">टोकन जनरेट करें 🎟️</button>
+                    </div>
+                </div>
+
+                <!-- SLIDE 3: E-Pass, QR Code & Queue Status -->
+                <div class="slide" id="slide3">
+                    <h2 id="s3-title">🎟️ स्टेप 3: आपका डिजिटल ई-गेट पास</h2>
+
+                    <div id="printableSlip">
+                        <h3 style="color: #1b4d3e;" id="slipHeader">🌾 किसान सुविधा - ई-गेट पास</h3>
+                        <div class="token-box" id="tokenDisplay">टोकन #--</div>
+                        <p style="font-size: 1rem; margin-top: 5px;"><strong id="slipName">---</strong> | <strong id="slipMobile">---</strong></p>
+                        <p style="font-size: 0.9rem; color: #555; margin-top: 3px;" id="slipDetails">---</p>
+                        
+                        <div id="qrcode"></div>
+                        <p style="font-size: 0.8rem; color: #777;" id="slipInstructions">मंडी गेट पर प्रवेश हेतु यह QR Code दिखाएं।</p>
+                    </div>
+
+                    <!-- DASHBOARD -->
+                    <div class="dashboard-grid">
+                        <div class="dash-card" style="border-left-color: #e65100; background: #fff3e0;">
+                            <strong id="lbl-dash-live">📢 मंडी लाइव स्टेटस:</strong>
+                            <p style="font-size: 1.2rem; color: #e65100; font-weight: bold; margin-top: 4px;" id="currentTokenDisplay">अभी चल रहा टोकन: #--</p>
+                            <p style="font-size: 0.95rem; font-weight: bold; color: #d84315; margin-top: 4px;" id="tokensRemainingText">आपकी बारी से पहले: -- टोकन बाकी</p>
+                        </div>
+
+                        <div class="dash-card">
+                            <strong id="lbl-dash-queue">🤖 AI वेटिंग समय:</strong>
+                            <p style="font-size: 1.1rem; color: #1976d2; font-weight: bold; margin-top: 4px;" id="waitTime">~ -- मिनट</p>
+                            <p><span id="lbl-dash-ahead">आगे कुल वाहन:</span> <strong id="aheadVehicles">0</strong></p>
+                            <p style="font-size: 0.8rem; color:#2e7d32; font-weight:bold; margin-top:3px;" id="vGateInfo">गेट लेन: --</p>
+                        </div>
+                        
+                        <div class="dash-card" style="border-left-color: #2e7d32;">
+                            <strong id="lbl-dash-dbt">💳 DBT भुगतान स्टेटस:</strong>
+                            <p style="color: green; font-weight: bold; margin-top: 4px;" id="lbl-dbt-status">✔ बैंक खाता / DBT लिंक</p>
+                            <p id="estAmtText">अनुमानित राशि: ₹0</p>
+                            <p style="font-size: 0.75rem; color:#555; margin-top:3px;" id="lbl-dbt-time">भुगतान समय: 48 घंटे भीतर</p>
+                        </div>
+                    </div>
+
+                    <div class="btn-group">
+                        <button class="btn-secondary" id="btn-reset" onclick="resetForm()">🔄 नया टोकन बुक करें</button>
+                        <button class="btn-primary" style="background: #1976d2;" onclick="switchMainTab('procurement')">📊 लाइव कतार देखें</button>
+                        <button class="btn-primary" style="background:#7b1fa2;" id="btn-print" onclick="window.print()">🖨️ रसीद प्रिंट करें</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- VIEW 2: PROCUREMENT LIVE QUEUE TAB -->
+        <div class="view-section" id="view-procurement">
+            <div class="card">
+                <h2>📊 मंडी लाइव खरीदी कतार (Procurement Queue)</h2>
+                
+                <!-- Currently Processing Banner -->
+                <div class="current-processing-banner">
+                    <div class="processing-details">
+                        <span style="background: rgba(255,255,255,0.2); padding: 3px 10px; border-radius: 12px; font-size: 0.8rem;">⚙️ वर्तमान में प्रोसेसिंग जारी</span>
+                        <h3 id="bannerToken">टोकन #20 - रामकुमार शर्मा</h3>
+                        <p id="bannerInfo">🌾 गेहूं (25 क्विंटल) | 🚜 ट्रैक्टर (Lane A) | मंडीदीप केंद्र 01</p>
+                    </div>
+                    <div>
+                        <button class="btn-action" onclick="callNextFarmer()">अगला किसान बुलाएं (Call Next) ➡️</button>
+                    </div>
+                </div>
+
+                <!-- Live Search and Filter -->
+                <div class="search-bar">
+                    <input type="text" id="searchFarmer" placeholder="किसान का नाम या टोकन नंबर खोजें..." onkeyup="filterQueue()">
+                    <select id="filterStatus" onchange="filterQueue()" style="width: auto; margin: 0;">
+                        <option value="all">सभी स्टेटस (All)</option>
+                        <option value="Processing">प्रोसेसिंग (Processing)</option>
+                        <option value="Waiting">वेटिंग (Waiting)</option>
+                        <option value="Completed">पूर्ण (Completed)</option>
+                    </select>
+                </div>
+
+                <!-- Registered Farmers Table -->
+                <div class="queue-table-wrapper">
+                    <table class="queue-table">
+                        <thead>
+                            <tr>
+                                <th>टोकन #</th>
+                                <th>किसान का नाम</th>
+                                <th>फसल व मात्रा</th>
+                                <th>वाहन / गेट लेन</th>
+                                <th>अनुमानित समय</th>
+                                <th>स्टेटस</th>
+                            </tr>
+                        </thead>
+                        <tbody id="queueTableBody">
+                            <!-- Populated dynamically via JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn-secondary" onclick="switchMainTab('registration')">⬅️ टोकन बुकिंग पर लौटें</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        let currentSlide = 1;
+        let myLastGeneratedToken = null;
+
+        // Sample Pre-populated Farmer Queue Database
+        let farmerQueue = [
+            { token: 20, name: "रामकुमार शर्मा", mobile: "98260XXXXX", crop: "गेहूं (25 Qtl)", vehicle: "🚜 ट्रैक्टर (Lane A)", wait: "प्रोसेसिंग में", status: "Processing" },
+            { token: 21, name: "सुरेश पटेल", mobile: "94250XXXXX", crop: "चना (15 Qtl)", vehicle: "🛻 पिकअप (Lane B)", wait: "~ 10 मिनट", status: "Waiting" },
+            { token: 22, name: "विकास यादव", mobile: "91790XXXXX", crop: "सरसों (30 Qtl)", vehicle: "🚜 ट्रैक्टर (Lane A)", wait: "~ 25 मिनट", status: "Waiting" },
+            { token: 23, name: "महेश कुशवाहा", mobile: "98930XXXXX", crop: "धान (20 Qtl)", vehicle: "🚛 बड़ा ट्रक (Lane C)", wait: "~ 40 मिनट", status: "Waiting" },
+            { token: 24, name: "दिनेश साहू", mobile: "97550XXXXX", crop: "गेहूं (40 Qtl)", vehicle: "🚜 ट्रैक्टर (Lane A)", wait: "~ 55 मिनट", status: "Waiting" }
+        ];
+
+        // Main Tab Switcher
+        function switchMainTab(tab) {
+            document.getElementById('view-registration').classList.remove('active');
+            document.getElementById('view-procurement').classList.remove('active');
+            document.getElementById('tab-reg').classList.remove('active');
+            document.getElementById('tab-proc').classList.remove('active');
+
+            if (tab === 'registration') {
+                document.getElementById('view-registration').classList.add('active');
+                document.getElementById('tab-reg').classList.add('active');
+            } else {
+                document.getElementById('view-procurement').classList.add('active');
+                document.getElementById('tab-proc').classList.add('active');
+                renderQueueTable();
+            }
+        }
+
+        // Dynamic Price Calculator
+        function calculatePrice() {
+            const cropSelect = document.getElementById("cropType");
+            const qualitySelect = document.getElementById("cropQuality");
+            const msp = cropSelect.options[cropSelect.selectedIndex].getAttribute("data-msp");
+            const bonusMultiplier = parseFloat(qualitySelect.options[qualitySelect.selectedIndex].getAttribute("data-bonus"));
+            const qty = document.getElementById("cropQty").value;
+            const priceBox = document.getElementById("priceDisplay");
+            const lang = document.getElementById("langSelect").value;
+
+            if (qty && qty > 0) {
+                const effectiveMsp = Math.round(msp * bonusMultiplier);
+                const total = effectiveMsp * qty;
+                if(lang === 'hi') {
+                    priceBox.innerText = `💰 अनुमानित कुल भुगतान: ₹${total.toLocaleString('hi-IN')} (प्रभावी MSP ₹${effectiveMsp}/Qtl)`;
+                } else {
+                    priceBox.innerText = `💰 Estimated Total Payment: ₹${total.toLocaleString('en-IN')} (Effective MSP ₹${effectiveMsp}/Qtl)`;
+                }
+                priceBox.setAttribute("data-total", total);
+            } else {
+                priceBox.innerText = lang === 'hi' ? `💰 अनुमानित कुल भुगतान: ₹0` : `💰 Estimated Total Payment: ₹0`;
+                priceBox.setAttribute("data-total", 0);
+            }
+        }
+
+        // Dynamic Weather Forecast Simulation
+        function checkWeatherAlert(selectedDate) {
+            const alertBox = document.getElementById("weatherAlert");
+            const lang = document.getElementById("langSelect").value;
+            if (!selectedDate) {
+                alertBox.innerHTML = lang === 'hi' ? 
+                    `🌦️ <strong>मौसम सूचना:</strong> कृपया तिथि चुनें।` : 
+                    `🌦️ <strong>Weather Info:</strong> Please select a date.`;
+                return;
+            }
+            const day = new Date(selectedDate).getDate();
+            if (day % 3 === 0) {
+                alertBox.style.borderLeftColor = "#d32f2f";
+                alertBox.style.background = "#ffebee";
+                alertBox.innerHTML = lang === 'hi' ? 
+                    `🌧️ <strong>मौसम चेतावनी:</strong> ${selectedDate} को हल्की बारिश की संभावना है! कृपया फसल सुरक्षित ढक कर लाएं।` :
+                    `🌧️ <strong>Weather Warning:</strong> Light rain expected on ${selectedDate}! Please cover your produce safely.`;
+            } else {
+                alertBox.style.borderLeftColor = "#ffb300";
+                alertBox.style.background = "#fff8e1";
+                alertBox.innerHTML = lang === 'hi' ? 
+                    `☀️ <strong>मौसम सूचना:</strong> ${selectedDate} को मौसम साफ रहने का अनुमान है। मंडी आवागमन सुगम रहेगा।` :
+                    `☀️ <strong>Weather Info:</strong> Clear weather expected on ${selectedDate}. Easy transit to mandi.`;
+            }
+        }
+
+        // Navigation within Registration
+        function showSlide(slideNum) {
+            document.querySelectorAll('.slide').forEach(s => s.classList.remove('active'));
+            document.getElementById(`slide${slideNum}`).classList.add('active');
+
+            document.getElementById("progressLine").style.width = ((slideNum - 1) / 2) * 100 + "%";
+            for (let i = 1; i <= 3; i++) {
+                const node = document.getElementById(`node${i}`);
+                if (i <= slideNum) {
+                    node.classList.add('active');
+                } else {
+                    node.classList.remove('active');
+                }
+            }
+        }
+
+        function nextSlide(fromSlide) {
+            const lang = document.getElementById("langSelect").value;
+            if (fromSlide === 1) {
+                let name = document.getElementById("farmerName").value.trim();
+                let mobile = document.getElementById("farmerMobile").value.trim();
+                let qty = document.getElementById("cropQty").value;
+
+                if (!name || !mobile || !qty) {
+                    alert(lang === 'hi' ? "कृपया किसान का नाम, मोबाइल नंबर और फसल की मात्रा दर्ज करें!" : "Please fill Farmer Name, Mobile Number, and Crop Quantity!");
+                    return;
+                }
+                if (mobile.length !== 10 || isNaN(mobile)) {
+                    alert(lang === 'hi' ? "कृपया 10 अंकों का सही मोबाइल नंबर दर्ज करें!" : "Please enter a valid 10-digit mobile number!");
+                    return;
+                }
+            }
+            currentSlide++;
+            showSlide(currentSlide);
+        }
+
+        function prevSlide(fromSlide) {
+            currentSlide--;
+            showSlide(fromSlide);
+        }
+
+        // Speech Recognition
+        function startSpeech(targetInputId) {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                alert("आपका ब्राउज़र वॉइस इनपुट का समर्थन नहीं करता है। / Browser doesn't support Voice Input.");
+                return;
+            }
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const recognition = new SpeechRecognition();
+            const lang = document.getElementById("langSelect").value;
+            recognition.lang = lang === 'hi' ? 'hi-IN' : 'en-US';
+
+            recognition.onstart = () => { 
+                document.getElementById(targetInputId).placeholder = lang === 'hi' ? "सुन रहे हैं... बोलिए..." : "Listening... Speak now..."; 
+            };
+            recognition.onresult = (e) => { document.getElementById(targetInputId).value = e.results[0][0].transcript; };
+            recognition.start();
+        }
+
+        // Generate Token & Push to Live Queue
+        function generateToken() {
+            const lang = document.getElementById("langSelect").value;
+            let date = document.getElementById("date").value;
+            if (!date) {
+                alert(lang === 'hi' ? "कृपया उपज लाने की तारीख चुनें!" : "Please select a date!");
+                return;
+            }
+
+            let name = document.getElementById("farmerName").value.trim();
+            let mobile = document.getElementById("farmerMobile").value.trim();
+            
+            let cropSelect = document.getElementById("cropType");
+            let crop = cropSelect.options[cropSelect.selectedIndex].getAttribute(lang === 'hi' ? "data-hi" : "data-en");
+            
+            let qty = document.getElementById("cropQty").value;
+            let centreSelect = document.getElementById("centre");
+            let centre = centreSelect.options[centreSelect.selectedIndex].getAttribute(lang === 'hi' ? "data-hi" : "data-en");
+            
+            let vSelect = document.getElementById("vehicleType");
+            let vehicleName = vSelect.options[vSelect.selectedIndex].getAttribute(lang === 'hi' ? "data-hi" : "data-en");
+            let unloadsMinutesPerVeh = parseInt(vSelect.options[vSelect.selectedIndex].getAttribute("data-time")) || 15;
+            let assignedGate = vSelect.options[vSelect.selectedIndex].getAttribute("data-gate");
+            let totalAmt = document.getElementById("priceDisplay").getAttribute("data-total") || 0;
+
+            // Generate Sequential or Random Higher Token Number
+            let lastToken = farmerQueue.length > 0 ? farmerQueue[farmerQueue.length - 1].token : 24;
+            let farmerToken = lastToken + 1;
+            myLastGeneratedToken = farmerToken;
+
+            // Find currently processing token
+            let activeObj = farmerQueue.find(f => f.status === "Processing") || farmerQueue[0];
+            let activeToken = activeObj ? activeObj.token : 20;
+
+            let remainingTokens = farmerToken - activeToken;
+            let aheadCount = remainingTokens > 0 ? remainingTokens : 0;
+            let waitMins = aheadCount * (unloadsMinutesPerVeh / 2);
+
+            // Add newly registered farmer to live queue array
+            farmerQueue.push({
+                token: farmerToken,
+                name: name,
+                mobile: mobile.substring(0, 5) + "XXXXX",
+                crop: `${crop.split(' ')[0]} (${qty} Qtl)`,
+                vehicle: `${vehicleName} (${assignedGate})`,
+                wait: `~ ${Math.round(waitMins)} मिनट`,
+                status: "Waiting"
+            });
+
+            // Populate E-Pass
+            document.getElementById("tokenDisplay").innerText = (lang === 'hi' ? "टोकन #" : "Token #") + farmerToken;
+            document.getElementById("slipName").innerText = (lang === 'hi' ? "किसान: " : "Farmer: ") + name;
+            document.getElementById("slipMobile").innerText = "📱 " + mobile;
+            document.getElementById("slipDetails").innerText = `${crop} (${qty} Qtl) | ${centre} | Date: ${date}`;
+            
+            // Populate Dashboard Cards
+            document.getElementById("currentTokenDisplay").innerText = (lang === 'hi' ? "अभी चल रहा टोकन: #" : "Current Running Token: #") + activeToken;
+            document.getElementById("tokensRemainingText").innerText = lang === 'hi' ? 
+                `आपकी बारी से पहले: ${aheadCount} टोकन बाकी` : 
+                `Before your turn: ${aheadCount} Tokens left`;
+
+            document.getElementById("waitTime").innerText = "~ " + Math.round(waitMins) + (lang === 'hi' ? " मिनट" : " Mins");
+            document.getElementById("aheadVehicles").innerText = aheadCount;
+            document.getElementById("vGateInfo").innerText = (lang === 'hi' ? "वाहन एवं लेन: " : "Vehicle & Lane: ") + vehicleName + " ➡️ " + assignedGate;
+            document.getElementById("estAmtText").innerText = (lang === 'hi' ? "अनुमानित राशि: ₹" : "Estimated Amount: ₹") + Number(totalAmt).toLocaleString(lang === 'hi' ? 'hi-IN' : 'en-IN');
+
+            // Generate QR Code
+            const qrContainer = document.getElementById("qrcode");
+            qrContainer.innerHTML = "";
+            try {
+                if (typeof QRCode !== 'undefined') {
+                    new QRCode(qrContainer, {
+                        text: `TOKEN:${farmerToken}|NAME:${name}|CROP:${crop}|QTY:${qty}|VEHICLE:${vehicleName}|DATE:${date}`,
+                        width: 120,
+                        height: 120
+                    });
+                }
+            } catch (err) { console.error("QR Error:", err); }
+
+            currentSlide = 3;
+            showSlide(3);
+        }
+
+        // Render Live Procurement Queue Table & Banner
+        function renderQueueTable() {
+            const tableBody = document.getElementById("queueTableBody");
+            tableBody.innerHTML = "";
+
+            let activeItem = farmerQueue.find(item => item.status === "Processing");
+            
+            // Update Banner
+            if (activeItem) {
+                document.getElementById("bannerToken").innerText = `टोकन #${activeItem.token} - ${activeItem.name}`;
+                document.getElementById("bannerInfo").innerText = `🌾 ${activeItem.crop} | ${activeItem.vehicle}`;
+            } else {
+                document.getElementById("bannerToken").innerText = `सभी टोकन पूर्ण`;
+                document.getElementById("bannerInfo").innerText = `मंडी काउंटर वर्तमान में खाली है।`;
+            }
+
+            // Render Rows
+            farmerQueue.forEach(item => {
+                const tr = document.createElement("tr");
+                if (myLastGeneratedToken === item.token) {
+                    tr.classList.add("highlight-my-token");
+                }
+
+                let statusBadge = '';
+                if (item.status === 'Processing') {
+                    statusBadge = `<span class="status-tag status-processing">⚙️ प्रोसेसिंग</span>`;
+                } else if (item.status === 'Waiting') {
+                    statusBadge = `<span class="status-tag status-waiting">⏳ प्रतीक्षा में</span>`;
+                } else {
+                    statusBadge = `<span class="status-tag status-completed">✔ पूर्ण</span>`;
+                }
+
+                tr.innerHTML = `
+                    <td><strong>#${item.token}</strong> ${myLastGeneratedToken === item.token ? '<span style="color:#2e7d32;">(आपका)</span>' : ''}</td>
+                    <td>${item.name} <br><small style="color:#777;">${item.mobile}</small></td>
+                    <td>${item.crop}</td>
+                    <td>${item.vehicle}</td>
+                    <td>${item.wait}</td>
+                    <td>${statusBadge}</td>
+                `;
+                tableBody.appendChild(tr);
+            });
+        }
+
+        // Function for Mandi Officer to Call Next Farmer
+        function callNextFarmer() {
+            let procIndex = farmerQueue.findIndex(item => item.status === "Processing");
+            if (procIndex !== -1) {
+                farmerQueue[procIndex].status = "Completed";
+                farmerQueue[procIndex].wait = "पूर्ण (Done)";
+
+                if (procIndex + 1 < farmerQueue.length) {
+                    farmerQueue[procIndex + 1].status = "Processing";
+                    farmerQueue[procIndex + 1].wait = "प्रोसेसिंग में";
+                }
+            } else {
+                let firstWait = farmerQueue.find(item => item.status === "Waiting");
+                if (firstWait) {
+                    firstWait.status = "Processing";
+                    firstWait.wait = "प्रोसेसिंग में";
+                }
+            }
+            renderQueueTable();
+        }
+
+        // Queue Search & Filter
+        function filterQueue() {
+            let searchVal = document.getElementById("searchFarmer").value.toLowerCase();
+            let filterVal = document.getElementById("filterStatus").value;
+
+            let rows = document.querySelectorAll("#queueTableBody tr");
+            rows.forEach((row, idx) => {
+                let item = farmerQueue[idx];
+                if (!item) return;
+
+                let matchesSearch = item.name.toLowerCase().includes(searchVal) || item.token.toString().includes(searchVal);
+                let matchesStatus = (filterVal === 'all') || (item.status === filterVal);
+
+                if (matchesSearch && matchesStatus) {
+                    row.style.display = "";
+                } else {
+                    row.style.display = "none";
+                }
+            });
+        }
+
+        function resetForm() {
+            document.getElementById("farmerName").value = "";
+            document.getElementById("farmerMobile").value = "";
+            document.getElementById("cropQty").value = "";
+            document.getElementById("date").value = "";
+            document.getElementById("bankDetails").value = "";
+            calculatePrice();
+            currentSlide = 1;
+            showSlide(1);
+        }
+
+        // Multi-Language Switcher
+        function changeLanguage(lang) {
+            document.getElementById("appHeader").innerText = lang === 'en' ? "🌾 Kisan Suvidha (Smart Procurement)" : "🌾 किसान सुविधा (Smart Procurement)";
+            document.getElementById("tab-reg").innerText = lang === 'en' ? "🎟️ Token Booking" : "🎟️ टोकन बुकिंग";
+            document.getElementById("tab-proc").innerText = lang === 'en' ? "📊 Procurement Queue" : "📊 प्रोक्योरमेंट लाइव कतार";
+
+            document.getElementById("s1-title").innerText = lang === 'en' ? "👤 Step 1: Farmer & Crop Information" : "👤 स्टेप 1: किसान एवं फसल की जानकारी";
+            document.getElementById("s2-title").innerText = lang === 'en' ? "📍 Step 2: Select Mandi, Vehicle & Slot" : "📍 स्टेप 2: मंडी, वाहन एवं स्लॉट चयन";
+            document.getElementById("s3-title").innerText = lang === 'en' ? "🎟️ Step 3: Your Digital E-Gate Pass" : "🎟️ स्टेप 3: आपका डिजिटल ई-गेट पास";
+
+            document.getElementById("lbl-name").innerText = lang === 'en' ? "Farmer Name:" : "किसान का नाम:";
+            document.getElementById("lbl-mobile").innerText = lang === 'en' ? "Mobile Number:" : "मोबाइल नंबर:";
+            document.getElementById("lbl-crop").innerText = lang === 'en' ? "Select Crop:" : "फसल का चयन करें:";
+            document.getElementById("lbl-quality").innerText = lang === 'en' ? "Crop Quality/Moisture:" : "फसल गुणवत्ता/नमी:";
+            document.getElementById("lbl-qty").innerText = lang === 'en' ? "Quantity (Quintal):" : "उपज मात्रा (क्विंटल):";
+            
+            document.getElementById("lbl-centre").innerText = lang === 'en' ? "Select Procurement Centre:" : "मंडी / खरीदी केंद्र चुनें:";
+            document.getElementById("lbl-date").innerText = lang === 'en' ? "Select Date:" : "उपज लाने की तिथि:";
+            document.getElementById("lbl-vehicle").innerText = lang === 'en' ? "Transport Vehicle Type:" : "परिवहन वाहन का प्रकार:";
+            document.getElementById("lbl-bank").innerText = lang === 'en' ? "DBT / Bank Account / UPI Details:" : "डीबीटी/बैंक खाता विवरण (DBT/Bank/UPI):";
+
+            document.getElementById("btn-next1").innerText = lang === 'en' ? "Next ➡️" : "आगे बढ़ें ➡️";
+            document.getElementById("btn-back2").innerText = lang === 'en' ? "⬅️ Back" : "⬅️ पीछे जाएं";
+            document.getElementById("btn-gen-token").innerText = lang === 'en' ? "Generate Token 🎟️" : "टोकन जनरेट करें 🎟️";
+            document.getElementById("btn-reset").innerText = lang === 'en' ? "🔄 Book New Token" : "🔄 नया टोकन बुक करें";
+            document.getElementById("btn-print").innerText = lang === 'en' ? "🖨️ Print Slip" : "🖨️ रसीद प्रिंट करें";
+
+            calculatePrice();
+        }
+    </script>
+</body>
+</html>
